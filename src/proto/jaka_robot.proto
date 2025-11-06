@@ -1,0 +1,306 @@
+syntax = "proto3";
+
+package jaka_robot;
+
+// 机械臂控制服务
+service JakaRobotService {
+  // 获取指定index机械臂的关节位置
+  rpc GetJointPosition(GetJointPositionRequest) returns (GetJointPositionResponse);
+  
+  // 获取指定index机械臂的笛卡尔位置
+  rpc GetCartesianPosition(GetCartesianPositionRequest) returns (GetCartesianPositionResponse);
+  
+  // 指定index机械臂关节位置移动
+  rpc JointMove(JointMoveRequest) returns (JointMoveResponse);
+  
+  // 双臂关节位置移动
+  rpc DualJointMove(DualJointMoveRequest) returns (DualJointMoveResponse);
+  
+  // 指定index机械臂笛卡尔坐标移动
+  rpc CartesianMove(CartesianMoveRequest) returns (CartesianMoveResponse);
+  
+  // 双臂笛卡尔坐标移动
+  rpc DualCartesianMove(DualCartesianMoveRequest) returns (DualCartesianMoveResponse);
+  
+  // 连接机器人
+  rpc Connect(ConnectRequest) returns (ConnectResponse);
+  
+  // 断开机器人连接
+  rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
+
+  // 机器人上电
+  rpc PowerOn(PowerOnRequest) returns (PowerOnResponse);
+
+  // 机器人断电
+  rpc PowerOff(PowerOffRequest) returns (PowerOffResponse);
+  
+  // 机器人使能
+  rpc Enable(EnableRequest) returns (EnableResponse);
+  
+  // 机器人下使能
+  rpc Disable(DisableRequest) returns (DisableResponse);
+  
+  // 停止当前运动
+  rpc MotionAbort(MotionAbortRequest) returns (MotionAbortResponse);
+  
+  // 检查机器人是否正在运动
+  rpc IsInPosition(IsInPositionRequest) returns (IsInPositionResponse);
+
+  /*** Servo move ***/
+  rpc EnableServoMode(EnableServoModeRequest) returns (EnableServoModeResponse);
+
+  rpc IsServoMode(IsServoModeRequest) returns (IsServoModeResponse);
+
+  rpc ServoJ(ServoJRequest) returns (ServoJResponse);
+
+  rpc ServoP(ServoPRequest) returns (ServoPResponse);
+
+  rpc ServoSend(ServoSendRequest) returns (ServoSendResponse);
+}
+
+// 请求和响应消息定义
+
+// 伺服模式使能请求
+message EnableServoModeRequest {
+  int32 robot_index = 1; // 机器人索引
+  bool enable = 2; // 是否使能
+}
+
+// 伺服模式使能响应
+message EnableServoModeResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 查询伺服模式请求
+message IsServoModeRequest {
+  int32 robot_index = 1; // 机器人索引
+}
+
+// 查询伺服模式响应
+message IsServoModeResponse {
+  bool success = 1;
+  string error_message = 2;
+  bool is_servo_mode = 3; // 是否处于伺服模式
+}
+
+// 伺服关节控制请求
+message ServoJRequest {
+  int32 robot_index = 1; // 机器人索引
+  repeated double joint_positions = 2; // 目标关节位置
+}
+
+// 伺服关节控制响应
+message ServoJResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 伺服笛卡尔控制请求
+message ServoPRequest {
+  int32 robot_index = 1; // 机器人索引
+  CartesianPose cartesian_pose = 2; // 目标笛卡尔位姿
+}
+
+// 伺服笛卡尔控制响应
+message ServoPResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 伺服数据发送请求
+message ServoSendRequest {
+  int32 robot_index = 1; // 机器人索引
+}
+
+// 伺服数据发送响应
+message ServoSendResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 获取关节位置请求
+message GetJointPositionRequest {
+  int32 robot_index = 1;  // 机器人索引，0表示左臂，1表示右臂
+}
+
+// 获取关节位置响应
+message GetJointPositionResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated double joint_positions = 3;  // 关节位置数组，单位rad
+}
+
+// 获取笛卡尔位置请求
+message GetCartesianPositionRequest {
+  int32 robot_index = 1;  // 机器人索引，0表示左臂，1表示右臂
+}
+
+// 获取笛卡尔位置响应
+message GetCartesianPositionResponse {
+  bool success = 1;
+  string error_message = 2;
+  CartesianPose cartesian_pose = 3;  // 笛卡尔位姿
+}
+
+// 关节移动请求
+message JointMoveRequest {
+  int32 robot_index = 1;  // 机器人索引，0表示左臂，1表示右臂
+  repeated double joint_positions = 2;  // 目标关节位置，单位rad（7个关节）
+  bool is_block = 3;  // 是否阻塞等待运动完成
+  bool is_relative = 4;  // 是否相对当前位置运动
+  double velocity = 5;  // 运动速度
+  double acceleration = 6;  // 运动加速度
+}
+
+// 关节移动响应
+message JointMoveResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 双臂关节移动请求
+message DualJointMoveRequest {
+  repeated double left_joint_positions = 1;  // 左臂目标关节位置，单位rad
+  repeated double right_joint_positions = 2;  // 右臂目标关节位置，单位rad
+  bool is_block = 3;  // 是否阻塞等待运动完成
+  bool is_relative = 4;  // 是否相对当前位置运动
+  double velocity = 5;  // 运动速度
+  double acceleration = 6;  // 运动加速度
+}
+
+// 双臂关节移动响应
+message DualJointMoveResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 笛卡尔移动请求
+message CartesianMoveRequest {
+  int32 robot_index = 1;  // 机器人索引，0表示左臂，1表示右臂
+  CartesianPose cartesian_pose = 2;  // 目标笛卡尔位姿
+  bool is_block = 3;  // 是否阻塞等待运动完成
+  bool is_relative = 4;  // 是否相对当前位置运动
+  double velocity = 5;  // 运动速度
+  double acceleration = 6;  // 运动加速度
+}
+
+// 笛卡尔移动响应
+message CartesianMoveResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 双臂笛卡尔移动请求
+message DualCartesianMoveRequest {
+  CartesianPose left_cartesian_pose = 1;  // 左臂目标笛卡尔位姿
+  CartesianPose right_cartesian_pose = 2;  // 右臂目标笛卡尔位姿
+  bool is_block = 3;  // 是否阻塞等待运动完成
+  bool is_relative = 4;  // 是否相对当前位置运动
+  double velocity = 5;  // 运动速度
+  double acceleration = 6;  // 运动加速度
+}
+
+// 双臂笛卡尔移动响应
+message DualCartesianMoveResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 连接请求
+message ConnectRequest {
+  string ip_address = 1;  // 控制器IP地址
+}
+
+// 连接响应
+message ConnectResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 断开连接请求
+message DisconnectRequest {
+}
+
+// 断开连接响应
+message DisconnectResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message PowerOnRequest{
+}
+
+message PowerOnResponse{
+  bool success = 1;
+  string error_message = 2;
+}
+
+message PowerOffRequest{
+}
+
+message PowerOffResponse{
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 使能请求
+message EnableRequest {
+}
+
+// 使能响应
+message EnableResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 下使能请求
+message DisableRequest {
+}
+
+// 下使能响应
+message DisableResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 停止运动请求
+message MotionAbortRequest {
+}
+
+// 停止运动响应
+message MotionAbortResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 检查到位请求
+message IsInPositionRequest {
+}
+
+// 检查到位响应
+message IsInPositionResponse {
+  bool success = 1;
+  string error_message = 2;
+  bool is_in_position = 3;  // 是否到位
+}
+
+// 笛卡尔位姿
+message CartesianPose {
+  CartesianTran translation = 1;  // 位置
+  Rpy rotation = 2;  // 姿态（欧拉角）
+}
+
+// 笛卡尔位置
+message CartesianTran {
+  double x = 1;  // x轴坐标，单位mm
+  double y = 2;  // y轴坐标，单位mm
+  double z = 3;  // z轴坐标，单位mm
+}
+
+// 欧拉角姿态
+message Rpy {
+  double rx = 1;  // 绕固定轴X旋转角度，单位rad
+  double ry = 2;  // 绕固定轴Y旋转角度，单位rad
+  double rz = 3;  // 绕固定轴Z旋转角度，单位rad
+}

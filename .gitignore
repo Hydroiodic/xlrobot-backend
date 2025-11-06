@@ -1,0 +1,67 @@
+# Build directories
+build/
+Build/
+*/build/
+*/Build/
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE specific files
+# Visual Studio Code
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# CLion
+.idea/
+*.iws
+
+# Visual Studio
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.sdf
+*.opensdf
+
+# Qt Creator
+*.autosave
+
+# Eclipse
+.project
+.cproject
+.settings/
+
+# Backup files
+*.bak
+*.backup
+
+# Logs
+*.log
+
+# Coverage reports
+*.gcda
+*.gcno
+*.gcov
+
+# Profiling
+*.prof
+
+# Clangd cache
+.cache/
