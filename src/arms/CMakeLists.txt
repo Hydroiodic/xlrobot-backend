@@ -2,6 +2,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(
     ARMS_SRCS
+    JakaErrorParser.cpp
     JakaServer.cpp
     timespec.cpp
 )

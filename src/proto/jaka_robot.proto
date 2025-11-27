@@ -56,6 +56,12 @@ service JakaRobotService {
   rpc ServoP(ServoPRequest) returns (ServoPResponse);
 
   rpc ServoSend(ServoSendRequest) returns (ServoSendResponse);
+
+  // 动力学正解 - 关节位置到笛卡尔位姿
+  rpc ForwardKinematics(ForwardKinematicsRequest) returns (ForwardKinematicsResponse);
+  
+  // 动力学反解 - 笛卡尔位姿到关节位置
+  rpc InverseKinematics(InverseKinematicsRequest) returns (InverseKinematicsResponse);
 }
 
 // 请求和响应消息定义
@@ -303,4 +309,31 @@ message Rpy {
   double rx = 1;  // 绕固定轴X旋转角度，单位rad
   double ry = 2;  // 绕固定轴Y旋转角度，单位rad
   double rz = 3;  // 绕固定轴Z旋转角度，单位rad
+}
+
+// 动力学正解请求
+message ForwardKinematicsRequest {
+  int32 robot_index = 1;  // 机器人索引，0表示左臂，1表示右臂
+  repeated double joint_positions = 2;  // 关节位置数组，单位rad（7个关节）
+}
+
+// 动力学正解响应
+message ForwardKinematicsResponse {
+  bool success = 1;
+  string error_message = 2;
+  CartesianPose cartesian_pose = 3;  // 计算得到的笛卡尔位姿
+}
+
+// 动力学反解请求
+message InverseKinematicsRequest {
+  int32 robot_index = 1;  // 机器人索引，0表示左臂，1表示右臂
+  CartesianPose cartesian_pose = 2;  // 目标笛卡尔位姿
+  repeated double reference_joint_positions = 3;  // 参考关节位置，用于反解时的初值
+}
+
+// 动力学反解响应
+message InverseKinematicsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated double joint_positions = 3;  // 计算得到的关节位置，单位rad（7个关节）
 }

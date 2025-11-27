@@ -11,7 +11,7 @@ namespace jaka_robot {
 
 class JakaServer final : public JakaRobotService::Service {
   public:
-    JakaServer();
+    JakaServer(const std::string &);
     ~JakaServer();
 
     // GRPC服务方法实现
@@ -94,6 +94,17 @@ class JakaServer final : public JakaRobotService::Service {
                            const ServoSendRequest *request,
                            ServoSendResponse *response) override;
 
+    // 动力学正反解接口
+    grpc::Status
+    ForwardKinematics(grpc::ServerContext *context,
+                      const ForwardKinematicsRequest *request,
+                      ForwardKinematicsResponse *response) override;
+
+    grpc::Status
+    InverseKinematics(grpc::ServerContext *context,
+                      const InverseKinematicsRequest *request,
+                      InverseKinematicsResponse *response) override;
+
   private:
     // 伺服控制线程函数
     void servoControlThread();
@@ -108,7 +119,6 @@ class JakaServer final : public JakaRobotService::Service {
     };
 
     JAKAZuRobot robot_;
-    bool is_connected_;
     bool is_enabled_;
     bool servo_mode_enabled_;
 
