@@ -1,5 +1,6 @@
 #include "ErrorParser.hpp"
 #include "JakaServer.hpp"
+#include "angle.hpp"
 #include "timespec.h"
 #include <chrono>
 #include <iostream>
@@ -185,9 +186,9 @@ JakaArmServer::GetCartesianPosition(grpc::ServerContext *context,
 
             auto *rotation =
                 response->mutable_cartesian_pose()->mutable_rotation();
-            rotation->set_rx(cartesian_pose.rpy.rx);
-            rotation->set_ry(cartesian_pose.rpy.ry);
-            rotation->set_rz(cartesian_pose.rpy.rz);
+            rotation->set_rx(angle::degreesToRadians(cartesian_pose.rpy.rx));
+            rotation->set_ry(angle::degreesToRadians(cartesian_pose.rpy.ry));
+            rotation->set_rz(angle::degreesToRadians(cartesian_pose.rpy.rz));
         } else {
             response->set_success(false);
             response->set_error_message(

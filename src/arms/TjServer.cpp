@@ -1,5 +1,6 @@
 #include "Logger.hpp"
 #include "TjServer.hpp"
+#include "angle.hpp"
 #include <libtj/FxRobot.h>
 #include <libtj/MarvinSDK.h>
 #include <mutex>
@@ -56,7 +57,7 @@ TjArmServer::GetJointPosition(grpc::ServerContext *context,
     // Fill joint positions in response
     for (int i = 0; i < 7; ++i) {
         response->add_joint_positions(
-            dcss.m_Out[robot_index].m_FB_Joint_Pos[i]);
+            angle::degreesToRadians(dcss.m_Out[robot_index].m_FB_Joint_Pos[i]));
     }
 
     response->set_success(true);
@@ -103,9 +104,9 @@ TjArmServer::GetCartesianPosition(grpc::ServerContext *context,
     trans->set_x(fk_result.value()[0]);
     trans->set_y(fk_result.value()[1]);
     trans->set_z(fk_result.value()[2]);
-    rot->set_rx(fk_result.value()[3]);
-    rot->set_ry(fk_result.value()[4]);
-    rot->set_rz(fk_result.value()[5]);
+    rot->set_rx(angle::degreesToRadians(fk_result.value()[3]));
+    rot->set_ry(angle::degreesToRadians(fk_result.value()[4]));
+    rot->set_rz(angle::degreesToRadians(fk_result.value()[5]));
 
     response->set_success(true);
     return grpc::Status::OK;
@@ -127,18 +128,24 @@ grpc::Status TjArmServer::JointMove(grpc::ServerContext *context,
         return grpc::Status::OK;
     }
 
-    // TODO: Relative movement support
-    if (request->is_relative()) {
-        response->set_success(false);
-        response->set_error_message("暂不支持关节相对运动");
-        LOG_WARN("Relative movement currently not supported");
-        return grpc::Status::OK;
-    }
-
     // Prepare joint position command
     double joints[7];
     for (int i = 0; i < 7; ++i) {
-        joints[i] = request->joint_positions(i);
+        joints[i] = angle::radiansToDegrees(request->joint_positions(i));
+    }
+
+    // If relative movement is requested, adjust target joints accordingly
+    if (request->is_relative()) {
+        // Get current joint positions
+        static DCSS dcss;
+        if (!OnGetBuf(&dcss)) {
+            response->set_success(false);
+            response->set_error_message("获取机器人状态失败");
+            return grpc::Status::OK;
+        }
+        for (int i = 0; i < 7; ++i) {
+            joints[i] += dcss.m_Out[robot_index].m_FB_Joint_Pos[i];
+        }
     }
 
     // Send command to robot
@@ -150,16 +157,8 @@ grpc::Status TjArmServer::JointMove(grpc::ServerContext *context,
     }
     OnSetSend();
 
-    // // Wait for motion to start
-    // if (!TjArmServer::waitForMotion(robot_index, 500)) {
-    //     response->set_success(false);
-    //     response->set_error_message(
-    //         "等待运动开始超时，可能由于起点与终点重合或过近");
-    //     return grpc::Status::OK;
-    // }
-
     // Sleep for a short while to ensure motion has started
-    usleep(500000);
+    usleep(100000);
 
     // Wait for motion to complete if blocking is requested
     if (request->is_block() &&
@@ -188,18 +187,27 @@ grpc::Status TjArmServer::DualJointMove(grpc::ServerContext *context,
         return grpc::Status::OK;
     }
 
-    // TODO: Relative movement support
-    if (request->is_relative()) {
-        response->set_success(false);
-        response->set_error_message("暂不支持双臂关节相对运动");
-        LOG_ERROR("Relative movement currently not supported");
-        return grpc::Status::OK;
-    }
-
     double joints[2][7];
     for (int i = 0; i < 7; ++i) {
-        joints[0][i] = request->left_joint_positions(i);  // 左臂
-        joints[1][i] = request->right_joint_positions(i); // 右臂
+        joints[0][i] =
+            angle::radiansToDegrees(request->left_joint_positions(i));
+        joints[1][i] =
+            angle::radiansToDegrees(request->right_joint_positions(i));
+    }
+
+    // If relative movement is requested, adjust target joints accordingly
+    if (request->is_relative()) {
+        // Get current joint positions
+        static DCSS dcss;
+        if (!OnGetBuf(&dcss)) {
+            response->set_success(false);
+            response->set_error_message("获取机器人状态失败");
+            return grpc::Status::OK;
+        }
+        for (int i = 0; i < 7; ++i) {
+            joints[0][i] += dcss.m_Out[0].m_FB_Joint_Pos[i];
+            joints[1][i] += dcss.m_Out[1].m_FB_Joint_Pos[i];
+        }
     }
 
     // Send commands to robot
@@ -208,16 +216,8 @@ grpc::Status TjArmServer::DualJointMove(grpc::ServerContext *context,
     RIGHT(OnSetJointCmdPos)(joints[1]);
     OnSetSend();
 
-    // // Wait for motion to start
-    // if (!TjArmServer::waitForMotion(-1, 500)) {
-    //     response->set_success(false);
-    //     response->set_error_message(
-    //         "等待双臂运动开始超时，可能由于起点与终点重合或过近");
-    //     return grpc::Status::OK;
-    // }
-
     // Sleep for a short while to ensure motion has started
-    usleep(500000);
+    usleep(100000);
 
     // Wait for motion to complete if blocking is requested
     if (request->is_block() && !TjArmServer::waitForMotionComplete(-1)) {
@@ -240,22 +240,17 @@ grpc::Status TjArmServer::CartesianMove(grpc::ServerContext *context,
         return grpc::Status::OK;
     }
 
-    // TODO: Relative movement support
-    if (request->is_relative()) {
-        response->set_success(false);
-        response->set_error_message("暂不支持笛卡尔相对运动");
-        LOG_ERROR("Relative movement currently not supported");
-        return grpc::Status::OK;
-    }
-
     // Construct target pose
     FX_DOUBLE xyzabc[6];
     xyzabc[0] = request->cartesian_pose().translation().x();
     xyzabc[1] = request->cartesian_pose().translation().y();
     xyzabc[2] = request->cartesian_pose().translation().z();
-    xyzabc[3] = request->cartesian_pose().rotation().rx();
-    xyzabc[4] = request->cartesian_pose().rotation().ry();
-    xyzabc[5] = request->cartesian_pose().rotation().rz();
+    xyzabc[3] =
+        angle::radiansToDegrees(request->cartesian_pose().rotation().rx());
+    xyzabc[4] =
+        angle::radiansToDegrees(request->cartesian_pose().rotation().ry());
+    xyzabc[5] =
+        angle::radiansToDegrees(request->cartesian_pose().rotation().rz());
 
     // Use current joint position as IK reference
     static DCSS dcss;
@@ -270,7 +265,23 @@ grpc::Status TjArmServer::CartesianMove(grpc::ServerContext *context,
         current_joints[i] = dcss.m_Out[robot_index].m_FB_Joint_Pos[i];
     }
 
-    auto ik_result = ik(robot_index, xyzabc, current_joints);
+    // If relative movement is requested, adjust target pose accordingly
+    if (request->is_relative()) {
+        // Get current Cartesian position
+        auto fk_result = TjArmServer::fk(robot_index, current_joints.data());
+        if (!fk_result.has_value()) {
+            response->set_success(false);
+            response->set_error_message("动力学正解计算失败");
+            return grpc::Status::OK;
+        }
+        // Adjust target pose
+        for (int i = 0; i < 6; ++i) {
+            xyzabc[i] += fk_result.value()[i];
+        }
+    }
+
+    // Execute IK to get joint positions
+    auto ik_result = TjArmServer::ik(robot_index, xyzabc, current_joints);
     if (!ik_result.has_value()) {
         response->set_success(false);
         response->set_error_message("笛卡尔运动逆解失败");
@@ -283,6 +294,7 @@ grpc::Status TjArmServer::CartesianMove(grpc::ServerContext *context,
         joints[i] = ik_result.value()[i];
     }
 
+    // Send command to robot
     OnClearSet();
     if (robot_index == 0) {
         LEFT(OnSetJointCmdPos)(joints);
@@ -291,8 +303,10 @@ grpc::Status TjArmServer::CartesianMove(grpc::ServerContext *context,
     }
     OnSetSend();
 
-    usleep(500000);
+    // Sleep for a short while to ensure motion has started
+    usleep(100000);
 
+    // Wait for motion to complete if blocking is requested
     if (request->is_block() &&
         !TjArmServer::waitForMotionComplete(robot_index)) {
         response->set_success(false);
@@ -321,18 +335,24 @@ TjArmServer::DualCartesianMove(grpc::ServerContext *context,
     xyzabc_left[0] = request->left_cartesian_pose().translation().x();
     xyzabc_left[1] = request->left_cartesian_pose().translation().y();
     xyzabc_left[2] = request->left_cartesian_pose().translation().z();
-    xyzabc_left[3] = request->left_cartesian_pose().rotation().rx();
-    xyzabc_left[4] = request->left_cartesian_pose().rotation().ry();
-    xyzabc_left[5] = request->left_cartesian_pose().rotation().rz();
+    xyzabc_left[3] =
+        angle::radiansToDegrees(request->left_cartesian_pose().rotation().rx());
+    xyzabc_left[4] =
+        angle::radiansToDegrees(request->left_cartesian_pose().rotation().ry());
+    xyzabc_left[5] =
+        angle::radiansToDegrees(request->left_cartesian_pose().rotation().rz());
 
     // Target pose for right arm
     FX_DOUBLE xyzabc_right[6];
     xyzabc_right[0] = request->right_cartesian_pose().translation().x();
     xyzabc_right[1] = request->right_cartesian_pose().translation().y();
     xyzabc_right[2] = request->right_cartesian_pose().translation().z();
-    xyzabc_right[3] = request->right_cartesian_pose().rotation().rx();
-    xyzabc_right[4] = request->right_cartesian_pose().rotation().ry();
-    xyzabc_right[5] = request->right_cartesian_pose().rotation().rz();
+    xyzabc_right[3] = angle::radiansToDegrees(
+        request->right_cartesian_pose().rotation().rx());
+    xyzabc_right[4] = angle::radiansToDegrees(
+        request->right_cartesian_pose().rotation().ry());
+    xyzabc_right[5] = angle::radiansToDegrees(
+        request->right_cartesian_pose().rotation().rz());
 
     // Use current joint positions of both arms as IK reference
     static DCSS dcss;
@@ -349,6 +369,29 @@ TjArmServer::DualCartesianMove(grpc::ServerContext *context,
         current_right[i] = dcss.m_Out[1].m_FB_Joint_Pos[i];
     }
 
+    // If relative movement is requested, adjust target poses accordingly
+    if (request->is_relative()) {
+        // Get current Cartesian positions
+        auto fk_left = TjArmServer::fk(0, current_left.data());
+        auto fk_right = TjArmServer::fk(1, current_right.data());
+        if (!fk_left.has_value()) {
+            response->set_success(false);
+            response->set_error_message("左臂动力学正解计算失败");
+            return grpc::Status::OK;
+        }
+        if (!fk_right.has_value()) {
+            response->set_success(false);
+            response->set_error_message("右臂动力学正解计算失败");
+            return grpc::Status::OK;
+        }
+        // Adjust target poses
+        for (int i = 0; i < 6; ++i) {
+            xyzabc_left[i] += fk_left.value()[i];
+            xyzabc_right[i] += fk_right.value()[i];
+        }
+    }
+
+    // Execute IK to get joint positions
     auto ik_left = ik(0, xyzabc_left, current_left);
     if (!ik_left.has_value()) {
         response->set_success(false);
@@ -363,6 +406,7 @@ TjArmServer::DualCartesianMove(grpc::ServerContext *context,
         return grpc::Status::OK;
     }
 
+    // Prepare joint position commands
     double joints_left[7];
     double joints_right[7];
     for (int i = 0; i < 7; ++i) {
@@ -370,13 +414,16 @@ TjArmServer::DualCartesianMove(grpc::ServerContext *context,
         joints_right[i] = ik_right.value()[i];
     }
 
+    // Send commands to robot
     OnClearSet();
     LEFT(OnSetJointCmdPos)(joints_left);
     RIGHT(OnSetJointCmdPos)(joints_right);
     OnSetSend();
 
-    usleep(500000);
+    // Sleep for a short while to ensure motion has started
+    usleep(100000);
 
+    // Wait for motion to complete if blocking is requested
     if (request->is_block() && !TjArmServer::waitForMotionComplete(-1)) {
         response->set_success(false);
         response->set_error_message("等待双臂笛卡尔运动完成超时");
@@ -454,7 +501,11 @@ grpc::Status TjArmServer::Disable(grpc::ServerContext *context,
 grpc::Status TjArmServer::MotionAbort(grpc::ServerContext *context,
                                       const MotionAbortRequest *request,
                                       MotionAbortResponse *response) {
-    throw std::runtime_error("Not implemented yet");
+    // Trigger emergency stop
+    OnEMG_AB();
+
+    // Return success
+    response->set_success(true);
     return grpc::Status::OK;
 }
 
@@ -546,7 +597,7 @@ TjArmServer::ForwardKinematics(grpc::ServerContext *context,
     // 构建关节位置
     double joints[7];
     for (int i = 0; i < 7; ++i) {
-        joints[i] = request->joint_positions(i);
+        joints[i] = angle::radiansToDegrees(request->joint_positions(i));
     }
 
     static Matrix4 kine_pg;
@@ -565,13 +616,13 @@ TjArmServer::ForwardKinematics(grpc::ServerContext *context,
 
     auto cartesian_pose = response->mutable_cartesian_pose();
     auto translation = cartesian_pose->mutable_translation();
+    auto rotation = cartesian_pose->mutable_rotation();
     translation->set_x(xyzabc[0]);
     translation->set_y(xyzabc[1]);
     translation->set_z(xyzabc[2]);
-    auto rotation = cartesian_pose->mutable_rotation();
-    rotation->set_rx(xyzabc[3]);
-    rotation->set_ry(xyzabc[4]);
-    rotation->set_rz(xyzabc[5]);
+    rotation->set_rx(angle::degreesToRadians(xyzabc[3]));
+    rotation->set_ry(angle::degreesToRadians(xyzabc[4]));
+    rotation->set_rz(angle::degreesToRadians(xyzabc[5]));
 
     response->set_success(true);
     return grpc::Status::OK;
@@ -594,9 +645,12 @@ TjArmServer::InverseKinematics(grpc::ServerContext *context,
     xyzabc[0] = request->cartesian_pose().translation().x();
     xyzabc[1] = request->cartesian_pose().translation().y();
     xyzabc[2] = request->cartesian_pose().translation().z();
-    xyzabc[3] = request->cartesian_pose().rotation().rx();
-    xyzabc[4] = request->cartesian_pose().rotation().ry();
-    xyzabc[5] = request->cartesian_pose().rotation().rz();
+    xyzabc[3] =
+        angle::radiansToDegrees(request->cartesian_pose().rotation().rx());
+    xyzabc[4] =
+        angle::radiansToDegrees(request->cartesian_pose().rotation().ry());
+    xyzabc[5] =
+        angle::radiansToDegrees(request->cartesian_pose().rotation().rz());
 
     // Convert to transformation matrix
     static Matrix4 kine_pg;
@@ -625,7 +679,7 @@ TjArmServer::InverseKinematics(grpc::ServerContext *context,
     // Fill joint positions in response
     auto joint_positions = response->mutable_joint_positions();
     for (int i = 0; i < 7; ++i) {
-        joint_positions->Add(sp.m_Output_RetJoint[i]);
+        joint_positions->Add(angle::degreesToRadians(sp.m_Output_RetJoint[i]));
     }
 
     response->set_success(true);

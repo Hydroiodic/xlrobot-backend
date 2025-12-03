@@ -73,7 +73,7 @@ CommandLineOptions parseArgs(int argc, char **argv) {
         } else if (arg == "--enable_camera") {
             opts.enable_camera = parse_bool(get_next_value(arg));
         } else if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: " << argv[0] << " [--arms_type jaka|tj]"
+            std::cout << "Usage: " << argv[0]
                       << " [--listening_address addr:port]"
                       << " [--arms_address ip]" << " [--enable_arms true|false]"
                       << " [--enable_camera true|false]\n";
