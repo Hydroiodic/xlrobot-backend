@@ -1,11 +1,23 @@
 #include "CameraServer.hpp"
-#include "JakaServer.hpp"
 #include "Logger.hpp"
 #include <iostream>
 #include <signal.h>
 #include <stdlib.h>
 #include <string>
 #include <unistd.h>
+
+// 0: jaka, 1: tj
+#ifndef ARMS_TYPE
+#define ARMS_TYPE 0
+#endif
+
+#if ARMS_TYPE == 0
+#include "JakaServer.hpp"
+#elif ARMS_TYPE == 1
+#include "TjServer.hpp"
+#else
+static_assert(false, "Unknown ARMS_TYPE");
+#endif
 
 // The command line options structure
 struct CommandLineOptions {
@@ -61,7 +73,7 @@ CommandLineOptions parseArgs(int argc, char **argv) {
         } else if (arg == "--enable_camera") {
             opts.enable_camera = parse_bool(get_next_value(arg));
         } else if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: " << argv[0]
+            std::cout << "Usage: " << argv[0] << " [--arms_type jaka|tj]"
                       << " [--listening_address addr:port]"
                       << " [--arms_address ip]" << " [--enable_arms true|false]"
                       << " [--enable_camera true|false]\n";
@@ -106,12 +118,16 @@ int main(int argc, char **argv) {
 
         // Create JakaServer if enabled
         if (options.enable_arms) {
-            std::cout << "Connecting to Jaka arms at " << options.arms_address
+            std::cout << "Connecting to arms at " << options.arms_address
                       << "...\n";
-
+#if ARMS_TYPE == 0
             // Create static JakaServer instance
-            static jaka_robot::JakaServer jaka_server(options.arms_address);
-            builder.RegisterService(&jaka_server);
+            static arms::JakaArmServer arms_server(options.arms_address);
+#elif ARMS_TYPE == 1
+            // Create static TjServer instance
+            static arms::TjArmServer arms_server(options.arms_address);
+#endif
+            builder.RegisterService(&arms_server);
         } else {
             std::cout << "Jaka arms disabled.\n";
         }

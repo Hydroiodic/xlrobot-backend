@@ -6,11 +6,8 @@
 #ifndef _JAKAAPI_H_
 #define _JAKAAPI_H_
 
-#include "jkerr.h"
 #include "jktypes.h"
 #include <stdint.h>
-#include <stdio.h>
-#include <string>
 
 #if defined(_WIN32) || defined(WIN32)
 /**

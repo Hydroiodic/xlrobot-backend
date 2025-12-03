@@ -1,5 +1,5 @@
-#include "Logger.hpp"
 #include "OrbbecDevice.hpp"
+#include "Logger.hpp"
 #include "config.hpp"
 #include <cstring>
 #include <iomanip>

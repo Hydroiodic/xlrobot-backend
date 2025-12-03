@@ -3,25 +3,22 @@ syntax = "proto3";
 package camera;
 
 service CameraService {
-  rpc GetConnectedDeviceSerialNumbers(EmptyRequest) returns (DeviceListResponse);
-  rpc GetImage(GetImageRequest) returns (ImageResponse);
+    rpc GetConnectedDeviceSerialNumbers(EmptyRequest)
+        returns(DeviceListResponse);
+    rpc GetImage(GetImageRequest) returns(ImageResponse);
 }
 
 message EmptyRequest {}
 
-message DeviceListResponse {
-  repeated string serial_numbers = 1;
-}
+message DeviceListResponse { repeated string serial_numbers = 1; }
 
-message GetImageRequest {
-  string serial_number = 1;
-}
+message GetImageRequest { string serial_number = 1; }
 
 message ImageResponse {
-  bool success = 1;
-  bytes image_data = 2;
-  uint32 width = 3;
-  uint32 height = 4;
-  uint32 channels = 5;
-  string error_message = 6;
+    bool success = 1;
+    bytes image_data = 2;
+    uint32 width = 3;
+    uint32 height = 4;
+    uint32 channels = 5;
+    string error_message = 6;
 }

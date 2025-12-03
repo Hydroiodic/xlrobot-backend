@@ -1,20 +1,19 @@
 #pragma once
 
-#include "jaka_robot.grpc.pb.h"
+#include "arms.grpc.pb.h"
 #include "libjaka/JAKAZuRobot.h"
 #include <atomic>
 #include <grpcpp/grpcpp.h>
 #include <mutex>
 #include <thread>
 
-namespace jaka_robot {
+namespace arms {
 
-class JakaServer final : public JakaRobotService::Service {
+class JakaArmServer final : public arms::RobotArmService::Service {
   public:
-    JakaServer(const std::string &);
-    ~JakaServer();
+    JakaArmServer(const std::string &);
+    ~JakaArmServer();
 
-    // GRPC服务方法实现
     grpc::Status GetJointPosition(grpc::ServerContext *context,
                                   const GetJointPositionRequest *request,
                                   GetJointPositionResponse *response) override;
@@ -73,7 +72,7 @@ class JakaServer final : public JakaRobotService::Service {
                               const IsInPositionRequest *request,
                               IsInPositionResponse *response) override;
 
-    // 新增的伺服模式相关接口
+    // 伺服模式相关接口
     grpc::Status EnableServoMode(grpc::ServerContext *context,
                                  const EnableServoModeRequest *request,
                                  EnableServoModeResponse *response) override;
@@ -138,4 +137,4 @@ class JakaServer final : public JakaRobotService::Service {
     std::mutex state_mutex_;
 };
 
-} // namespace jaka_robot
+} // namespace arms

@@ -1,18 +1,17 @@
-#include "JakaErrorParser.hpp"
+#include "ErrorParser.hpp"
 #include "JakaServer.hpp"
 #include "timespec.h"
-#include <bits/types/error_t.h>
 #include <chrono>
 #include <iostream>
 #include <libjaka/JAKAZuRobot.h>
-#include <libjaka/jktypes.h>
+#include <libjaka/jkerr.h>
 #include <stdexcept>
 #include <thread>
 #include <time.h>
 
-namespace jaka_robot {
+namespace arms {
 
-JakaServer::JakaServer(const std::string &robot_ip)
+JakaArmServer::JakaArmServer(const std::string &robot_ip)
     : is_enabled_(false), servo_mode_enabled_(false) {
     // Login to the robot
     auto res = robot_.login_in(robot_ip.c_str());
@@ -41,10 +40,10 @@ JakaServer::JakaServer(const std::string &robot_ip)
 
     // 启动伺服控制线程
     servo_thread_running_ = true;
-    servo_thread_ = std::thread(&JakaServer::servoControlThread, this);
+    servo_thread_ = std::thread(&JakaArmServer::servoControlThread, this);
 }
 
-JakaServer::~JakaServer() {
+JakaArmServer::~JakaArmServer() {
     // 停止伺服控制线程
     servo_thread_running_ = false;
     if (servo_thread_.joinable()) {
@@ -53,9 +52,9 @@ JakaServer::~JakaServer() {
 }
 
 grpc::Status
-JakaServer::GetJointPosition(grpc::ServerContext *context,
-                             const GetJointPositionRequest *request,
-                             GetJointPositionResponse *response) {
+JakaArmServer::GetJointPosition(grpc::ServerContext *context,
+                                const GetJointPositionRequest *request,
+                                GetJointPositionResponse *response) {
     int robot_index = request->robot_index();
     if (robot_index < 0 || robot_index >= 2) {
         response->set_success(false);
@@ -142,9 +141,9 @@ static bool getJointPositionWithRetry(JAKAZuRobot *robot, JointValue &jVal,
 }
 
 grpc::Status
-JakaServer::GetCartesianPosition(grpc::ServerContext *context,
-                                 const GetCartesianPositionRequest *request,
-                                 GetCartesianPositionResponse *response) {
+JakaArmServer::GetCartesianPosition(grpc::ServerContext *context,
+                                    const GetCartesianPositionRequest *request,
+                                    GetCartesianPositionResponse *response) {
     int robot_index = request->robot_index();
     if (robot_index < 0 || robot_index >= 2) {
         response->set_success(false);
@@ -199,9 +198,9 @@ JakaServer::GetCartesianPosition(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::JointMove(grpc::ServerContext *context,
-                                   const JointMoveRequest *request,
-                                   JointMoveResponse *response) {
+grpc::Status JakaArmServer::JointMove(grpc::ServerContext *context,
+                                      const JointMoveRequest *request,
+                                      JointMoveResponse *response) {
     int robot_index = request->robot_index();
     if (robot_index < 0 || robot_index > 1) {
         response->set_success(false);
@@ -249,9 +248,9 @@ grpc::Status JakaServer::JointMove(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::DualJointMove(grpc::ServerContext *context,
-                                       const DualJointMoveRequest *request,
-                                       DualJointMoveResponse *response) {
+grpc::Status JakaArmServer::DualJointMove(grpc::ServerContext *context,
+                                          const DualJointMoveRequest *request,
+                                          DualJointMoveResponse *response) {
     // 检查关节位置数量
     if (request->left_joint_positions_size() != 7) {
         response->set_success(false);
@@ -292,9 +291,9 @@ grpc::Status JakaServer::DualJointMove(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::CartesianMove(grpc::ServerContext *context,
-                                       const CartesianMoveRequest *request,
-                                       CartesianMoveResponse *response) {
+grpc::Status JakaArmServer::CartesianMove(grpc::ServerContext *context,
+                                          const CartesianMoveRequest *request,
+                                          CartesianMoveResponse *response) {
     int robot_index = request->robot_index();
     if (robot_index < 0 || robot_index > 1) {
         response->set_success(false);
@@ -338,9 +337,9 @@ grpc::Status JakaServer::CartesianMove(grpc::ServerContext *context,
 }
 
 grpc::Status
-JakaServer::DualCartesianMove(grpc::ServerContext *context,
-                              const DualCartesianMoveRequest *request,
-                              DualCartesianMoveResponse *response) {
+JakaArmServer::DualCartesianMove(grpc::ServerContext *context,
+                                 const DualCartesianMoveRequest *request,
+                                 DualCartesianMoveResponse *response) {
     ::CartesianPose cartesian_pose[2];
 
     // 左臂笛卡尔位姿
@@ -380,23 +379,23 @@ JakaServer::DualCartesianMove(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::Connect(grpc::ServerContext *context,
-                                 const ConnectRequest *request,
-                                 ConnectResponse *response) {
+grpc::Status JakaArmServer::Connect(grpc::ServerContext *context,
+                                    const ConnectRequest *request,
+                                    ConnectResponse *response) {
     // Do nothing
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::Disconnect(grpc::ServerContext *context,
-                                    const DisconnectRequest *request,
-                                    DisconnectResponse *response) {
+grpc::Status JakaArmServer::Disconnect(grpc::ServerContext *context,
+                                       const DisconnectRequest *request,
+                                       DisconnectResponse *response) {
     // Do nothing
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::Enable(grpc::ServerContext *context,
-                                const EnableRequest *request,
-                                EnableResponse *response) {
+grpc::Status JakaArmServer::Enable(grpc::ServerContext *context,
+                                   const EnableRequest *request,
+                                   EnableResponse *response) {
     errno_t result = robot_.power_on();
     if (result == ERR_SUCC) {
         // is_enabled_ = true; // 移除is_enabled_赋值
@@ -420,9 +419,9 @@ grpc::Status JakaServer::Enable(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::Disable(grpc::ServerContext *context,
-                                 const DisableRequest *request,
-                                 DisableResponse *response) {
+grpc::Status JakaArmServer::Disable(grpc::ServerContext *context,
+                                    const DisableRequest *request,
+                                    DisableResponse *response) {
     errno_t result = robot_.disable_robot();
 
     // is_enabled_ = false; // 移除is_enabled_赋值
@@ -443,9 +442,9 @@ grpc::Status JakaServer::Disable(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::MotionAbort(grpc::ServerContext *context,
-                                     const MotionAbortRequest *request,
-                                     MotionAbortResponse *response) {
+grpc::Status JakaArmServer::MotionAbort(grpc::ServerContext *context,
+                                        const MotionAbortRequest *request,
+                                        MotionAbortResponse *response) {
     errno_t result = robot_.motion_abort();
 
     response->set_success(result == ERR_SUCC);
@@ -456,9 +455,9 @@ grpc::Status JakaServer::MotionAbort(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::IsInPosition(grpc::ServerContext *context,
-                                      const IsInPositionRequest *request,
-                                      IsInPositionResponse *response) {
+grpc::Status JakaArmServer::IsInPosition(grpc::ServerContext *context,
+                                         const IsInPositionRequest *request,
+                                         IsInPositionResponse *response) {
     int inpos[2];
     errno_t result = robot_.robot_is_inpos(inpos);
 
@@ -474,9 +473,9 @@ grpc::Status JakaServer::IsInPosition(grpc::ServerContext *context,
 }
 
 // 新增的伺服模式相关接口实现
-grpc::Status JakaServer::PowerOn(grpc::ServerContext *context,
-                                 const PowerOnRequest *request,
-                                 PowerOnResponse *response) {
+grpc::Status JakaArmServer::PowerOn(grpc::ServerContext *context,
+                                    const PowerOnRequest *request,
+                                    PowerOnResponse *response) {
     errno_t result = robot_.power_on();
 
     response->set_success(result == ERR_SUCC);
@@ -487,9 +486,9 @@ grpc::Status JakaServer::PowerOn(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::PowerOff(grpc::ServerContext *context,
-                                  const PowerOffRequest *request,
-                                  PowerOffResponse *response) {
+grpc::Status JakaArmServer::PowerOff(grpc::ServerContext *context,
+                                     const PowerOffRequest *request,
+                                     PowerOffResponse *response) {
     errno_t result = robot_.power_off();
 
     response->set_success(result == ERR_SUCC);
@@ -500,9 +499,10 @@ grpc::Status JakaServer::PowerOff(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::EnableServoMode(grpc::ServerContext *context,
-                                         const EnableServoModeRequest *request,
-                                         EnableServoModeResponse *response) {
+grpc::Status
+JakaArmServer::EnableServoMode(grpc::ServerContext *context,
+                               const EnableServoModeRequest *request,
+                               EnableServoModeResponse *response) {
     if (request->enable()) {
         if (servo_mode_enabled_ && servo_mode_active_) {
             std::cout << "重复使能伺服模式" << std::endl;
@@ -561,9 +561,9 @@ grpc::Status JakaServer::EnableServoMode(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::IsServoMode(grpc::ServerContext *context,
-                                     const IsServoModeRequest *request,
-                                     IsServoModeResponse *response) {
+grpc::Status JakaArmServer::IsServoMode(grpc::ServerContext *context,
+                                        const IsServoModeRequest *request,
+                                        IsServoModeResponse *response) {
     response->set_success(true);
     RobotState state;
     robot_.get_robot_state(&state);
@@ -572,9 +572,9 @@ grpc::Status JakaServer::IsServoMode(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::ServoJ(grpc::ServerContext *context,
-                                const ServoJRequest *request,
-                                ServoJResponse *response) {
+grpc::Status JakaArmServer::ServoJ(grpc::ServerContext *context,
+                                   const ServoJRequest *request,
+                                   ServoJResponse *response) {
     if (!servo_mode_enabled_) {
         response->set_success(false);
         response->set_error_message("伺服模式未启用");
@@ -603,9 +603,9 @@ grpc::Status JakaServer::ServoJ(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::ServoP(grpc::ServerContext *context,
-                                const ServoPRequest *request,
-                                ServoPResponse *response) {
+grpc::Status JakaArmServer::ServoP(grpc::ServerContext *context,
+                                   const ServoPRequest *request,
+                                   ServoPResponse *response) {
     if (!servo_mode_enabled_) {
         response->set_success(false);
         response->set_error_message("伺服模式未启用");
@@ -642,9 +642,9 @@ grpc::Status JakaServer::ServoP(grpc::ServerContext *context,
     return grpc::Status::OK;
 }
 
-grpc::Status JakaServer::ServoSend(grpc::ServerContext *context,
-                                   const ServoSendRequest *request,
-                                   ServoSendResponse *response) {
+grpc::Status JakaArmServer::ServoSend(grpc::ServerContext *context,
+                                      const ServoSendRequest *request,
+                                      ServoSendResponse *response) {
     if (!servo_mode_enabled_) {
         response->set_success(false);
         response->set_error_message("伺服模式未启用");
@@ -658,9 +658,9 @@ grpc::Status JakaServer::ServoSend(grpc::ServerContext *context,
 
 // 动力学正解实现
 grpc::Status
-JakaServer::ForwardKinematics(grpc::ServerContext *context,
-                              const ForwardKinematicsRequest *request,
-                              ForwardKinematicsResponse *response) {
+JakaArmServer::ForwardKinematics(grpc::ServerContext *context,
+                                 const ForwardKinematicsRequest *request,
+                                 ForwardKinematicsResponse *response) {
     int robot_index = request->robot_index();
     if (robot_index < 0 || robot_index >= 2) {
         response->set_success(false);
@@ -709,9 +709,9 @@ JakaServer::ForwardKinematics(grpc::ServerContext *context,
 
 // 动力学反解实现
 grpc::Status
-JakaServer::InverseKinematics(grpc::ServerContext *context,
-                              const InverseKinematicsRequest *request,
-                              InverseKinematicsResponse *response) {
+JakaArmServer::InverseKinematics(grpc::ServerContext *context,
+                                 const InverseKinematicsRequest *request,
+                                 InverseKinematicsResponse *response) {
     int robot_index = request->robot_index();
     if (robot_index < 0 || robot_index >= 2) {
         response->set_success(false);
@@ -770,7 +770,7 @@ JakaServer::InverseKinematics(grpc::ServerContext *context,
 }
 
 // 伺服控制线程实现
-void JakaServer::servoControlThread() {
+void JakaArmServer::servoControlThread() {
     std::cout << "伺服控制线程启动" << std::endl;
 
     // 设置线程优先级为实时优先级
@@ -867,4 +867,4 @@ void JakaServer::servoControlThread() {
     std::cout << "伺服控制线程结束" << std::endl;
 }
 
-} // namespace jaka_robot
+} // namespace arms

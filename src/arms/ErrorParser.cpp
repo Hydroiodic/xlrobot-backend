@@ -1,9 +1,10 @@
-#include "JakaErrorParser.hpp"
+#include "ErrorParser.hpp"
 #include "libjaka/jkerr.h"
+#include <map>
 
-namespace jaka_robot {
+namespace arms {
 
-const std::map<int, std::string> JakaErrorParser::error_map_ = {
+const std::map<int, std::string> JakaErrorMap::error_map_ = {
     {ERR_SUCC, "0: 调用成功"},
     {ERR_FUCTION_CALL_ERROR,
      "2: 异常调用 — 控制器接口调用失败或不支持该操作，检查方法和参数是否正确"},
@@ -41,13 +42,8 @@ const std::map<int, std::string> JakaErrorParser::error_map_ = {
     {ROBOT_IN_ERROR, "0xFF: 机器人处于错误状态 — 请查询控制器错误并清除后重试"},
 };
 
-std::string JakaErrorParser::GetErrorMessage(int error_code) {
-    auto it = error_map_.find(error_code);
-    if (it != error_map_.end()) {
-        return it->second;
-    } else {
-        return "未知错误代码: " + std::to_string(error_code);
-    }
-}
+const std::map<int, std::string> TjErrorMap::error_map_ = {
+    {ERR_SUCC, "0: 调用成功"},
+};
 
-} // namespace jaka_robot
+} // namespace arms

@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-
 #define JAKA_ROBOT_MAX_JOINT 7
 #define LEFT 0
 #define RIGHT 1

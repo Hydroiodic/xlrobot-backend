@@ -2,10 +2,17 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(
     ARMS_SRCS
-    JakaErrorParser.cpp
-    JakaServer.cpp
+    ErrorParser.cpp
     timespec.cpp
 )
+
+if(ARMS_TYPE STREQUAL "jaka")
+    list(APPEND ARMS_SRCS JakaServer.cpp)
+elseif(ARMS_TYPE STREQUAL "tj")
+    list(APPEND ARMS_SRCS TjServer.cpp)
+else()
+    message(FATAL_ERROR "Unknown ARMS_TYPE='${ARMS_TYPE}', expected 'jaka' or 'tj'")
+endif()
 
 add_library(
     arms
@@ -23,5 +30,12 @@ target_link_libraries(
     arms
     PUBLIC
     proto
-    ${CMAKE_SOURCE_DIR}/lib/libjakaAPI.so
 )
+
+if(ARMS_TYPE STREQUAL "jaka")
+    target_link_libraries(
+        arms
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/lib/libjakaAPI.so
+    )
+endif()
