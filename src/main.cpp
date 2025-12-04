@@ -1,4 +1,3 @@
-#include "CameraServer.hpp"
 #include "Logger.hpp"
 #include <iostream>
 #include <signal.h>
@@ -6,49 +5,31 @@
 #include <string>
 #include <unistd.h>
 
-// 0: jaka, 1: tj
-#ifndef ARMS_TYPE
-#define ARMS_TYPE 0
-#endif
-
 #if ARMS_TYPE == 0
 #include "JakaServer.hpp"
 #elif ARMS_TYPE == 1
 #include "TjServer.hpp"
-#else
-static_assert(false, "Unknown ARMS_TYPE");
+#endif
+
+#if CAMERA_TYPE == 0
+#include "CameraServer.hpp"
 #endif
 
 // The command line options structure
 struct CommandLineOptions {
-    bool enable_arms = true;
-    bool enable_camera = true;
+#if ARMS_TYPE == 0
     std::string arms_address = "192.168.2.200";
+#elif ARMS_TYPE == 1
+    std::string arms_address = "192.168.1.190";
+#else
+    std::string arms_address = "127.0.0.1";
+#endif
     std::string listening_address = "127.0.0.1:50551";
 };
 
 CommandLineOptions parseArgs(int argc, char **argv) {
     // Create default options
     CommandLineOptions opts;
-
-    // To parse boolean values from strings
-    auto parse_bool = [](const std::string &value) -> bool {
-        // Convert to lower case for comparison
-        auto value_lower = value;
-        std::transform(value_lower.begin(), value_lower.end(),
-                       value_lower.begin(), ::tolower);
-
-        // Check common true/false representations
-        if (value_lower == "1" || value_lower == "true" ||
-            value_lower == "on" || value_lower == "yes")
-            return true;
-        if (value_lower == "0" || value_lower == "false" ||
-            value_lower == "off" || value_lower == "no")
-            return false;
-        std::cerr << "Invalid boolean value: " << value
-                  << " (use true/false, on/off, 1/0)\n";
-        std::exit(1);
-    };
 
     // Iterate through arguments
     for (int i = 1; i < argc; ++i) {
@@ -68,15 +49,10 @@ CommandLineOptions parseArgs(int argc, char **argv) {
             opts.listening_address = get_next_value(arg);
         } else if (arg == "--arms_address" || arg == "-a") {
             opts.arms_address = get_next_value(arg);
-        } else if (arg == "--enable_arms") {
-            opts.enable_arms = parse_bool(get_next_value(arg));
-        } else if (arg == "--enable_camera") {
-            opts.enable_camera = parse_bool(get_next_value(arg));
         } else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: " << argv[0]
                       << " [--listening_address addr:port]"
-                      << " [--arms_address ip]" << " [--enable_arms true|false]"
-                      << " [--enable_camera true|false]\n";
+                      << " [--arms_address ip]\n";
             std::exit(0);
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
@@ -103,11 +79,10 @@ int main(int argc, char **argv) {
     CommandLineOptions options = parseArgs(argc, argv);
 
     // If no services are enabled, exit
-    if (!options.enable_arms && !options.enable_camera) {
-        std::cout << "No services enabled. Exiting.\n";
-        return 0;
-    }
-
+#if ARMS_TYPE < 0 && CAMERA_TYPE < 0
+    std::cout << "No services enabled. Exiting.\n";
+    return 0;
+#else
     try {
         // Build and start the gRPC server
         grpc::ServerBuilder builder;
@@ -116,43 +91,48 @@ int main(int argc, char **argv) {
         builder.AddListeningPort(options.listening_address,
                                  grpc::InsecureServerCredentials());
 
+#if ARMS_TYPE >= 0
         // Create JakaServer if enabled
-        if (options.enable_arms) {
-            std::cout << "Connecting to arms at " << options.arms_address
-                      << "...\n";
-#if ARMS_TYPE == 0
-            // Create static JakaServer instance
-            static arms::JakaArmServer arms_server(options.arms_address);
-#elif ARMS_TYPE == 1
-            // Create static TjServer instance
-            static arms::TjArmServer arms_server(options.arms_address);
+        std::cout << "Connecting to arms at " << options.arms_address
+                  << "...\n";
 #endif
-            builder.RegisterService(&arms_server);
-        } else {
-            std::cout << "Jaka arms disabled.\n";
-        }
+#if ARMS_TYPE == 0
+        // Create static JakaServer instance
+        static arms::JakaArmServer arms_server(options.arms_address);
+#elif ARMS_TYPE == 1
+        // Create static TjServer instance
+        static arms::TjArmServer arms_server(options.arms_address);
+#endif
+#if ARMS_TYPE >= 0
+        builder.RegisterService(&arms_server);
+#else
+        std::cout << "Jaka arms disabled.\n";
+#endif
 
+#if CAMERA_TYPE >= 0
         // Create CameraServer if enabled
-        if (options.enable_camera) {
-            std::cout << "Starting camera server...\n";
-
-            // Create static CameraServer instance
-            static camera::CameraServer camera_server;
-            builder.RegisterService(&camera_server);
-        } else {
-            std::cout << "Camera server disabled.\n";
-        }
-
+        std::cout << "Starting camera server...\n";
+#endif
+#if CAMERA_TYPE == 0
+        // Create static CameraServer instance
+        static camera::CameraServer camera_server;
+#endif
+#if CAMERA_TYPE >= 0
+        builder.RegisterService(&camera_server);
+#else
+        std::cout << "Camera server disabled.\n";
+#endif
         // Finally assemble the server
         std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
-
         // Wait for the server to shutdown
         LOG_INFO("Server started at %s", options.listening_address.c_str());
         server->Wait();
+
     } catch (const std::exception &e) {
         std::cerr << "Server failed: " << e.what() << std::endl;
         return 1;
     }
 
     return 0;
+#endif
 }

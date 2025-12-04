@@ -129,9 +129,10 @@ grpc::Status TjArmServer::JointMove(grpc::ServerContext *context,
     }
 
     // Prepare joint position command
-    double joints[7];
+    static double joints[2][7];
     for (int i = 0; i < 7; ++i) {
-        joints[i] = angle::radiansToDegrees(request->joint_positions(i));
+        joints[robot_index][i] =
+            angle::radiansToDegrees(request->joint_positions(i));
     }
 
     // If relative movement is requested, adjust target joints accordingly
@@ -144,17 +145,15 @@ grpc::Status TjArmServer::JointMove(grpc::ServerContext *context,
             return grpc::Status::OK;
         }
         for (int i = 0; i < 7; ++i) {
-            joints[i] += dcss.m_Out[robot_index].m_FB_Joint_Pos[i];
+            joints[robot_index][i] += dcss.m_Out[robot_index].m_FB_Joint_Pos[i];
         }
     }
 
     // Send command to robot
     OnClearSet();
-    if (robot_index == 0) {
-        LEFT(OnSetJointCmdPos)(joints);
-    } else {
-        RIGHT(OnSetJointCmdPos)(joints);
-    }
+    TjArmServer::jointMoveCommand(robot_index, joints,
+                                  request->velocity() * 100,
+                                  request->acceleration() * 100);
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
@@ -187,7 +186,7 @@ grpc::Status TjArmServer::DualJointMove(grpc::ServerContext *context,
         return grpc::Status::OK;
     }
 
-    double joints[2][7];
+    static double joints[2][7];
     for (int i = 0; i < 7; ++i) {
         joints[0][i] =
             angle::radiansToDegrees(request->left_joint_positions(i));
@@ -212,8 +211,8 @@ grpc::Status TjArmServer::DualJointMove(grpc::ServerContext *context,
 
     // Send commands to robot
     OnClearSet();
-    LEFT(OnSetJointCmdPos)(joints[0]);
-    RIGHT(OnSetJointCmdPos)(joints[1]);
+    TjArmServer::jointMoveCommand(-1, joints, request->velocity() * 100,
+                                  request->acceleration() * 100);
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
@@ -289,18 +288,16 @@ grpc::Status TjArmServer::CartesianMove(grpc::ServerContext *context,
     }
 
     // Prepare joint position command
-    double joints[7];
+    static double joints[2][7];
     for (int i = 0; i < 7; ++i) {
-        joints[i] = ik_result.value()[i];
+        joints[robot_index][i] = ik_result.value()[i];
     }
 
     // Send command to robot
     OnClearSet();
-    if (robot_index == 0) {
-        LEFT(OnSetJointCmdPos)(joints);
-    } else {
-        RIGHT(OnSetJointCmdPos)(joints);
-    }
+    TjArmServer::jointMoveCommand(robot_index, joints,
+                                  request->velocity() * 100,
+                                  request->acceleration() * 100);
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
@@ -392,14 +389,14 @@ TjArmServer::DualCartesianMove(grpc::ServerContext *context,
     }
 
     // Execute IK to get joint positions
-    auto ik_left = ik(0, xyzabc_left, current_left);
+    auto ik_left = TjArmServer::ik(0, xyzabc_left, current_left);
     if (!ik_left.has_value()) {
         response->set_success(false);
         response->set_error_message("左臂笛卡尔运动逆解失败");
         return grpc::Status::OK;
     }
 
-    auto ik_right = ik(1, xyzabc_right, current_right);
+    auto ik_right = TjArmServer::ik(1, xyzabc_right, current_right);
     if (!ik_right.has_value()) {
         response->set_success(false);
         response->set_error_message("右臂笛卡尔运动逆解失败");
@@ -407,17 +404,16 @@ TjArmServer::DualCartesianMove(grpc::ServerContext *context,
     }
 
     // Prepare joint position commands
-    double joints_left[7];
-    double joints_right[7];
+    static double joints[2][7];
     for (int i = 0; i < 7; ++i) {
-        joints_left[i] = ik_left.value()[i];
-        joints_right[i] = ik_right.value()[i];
+        joints[0][i] = ik_left.value()[i];
+        joints[1][i] = ik_right.value()[i];
     }
 
     // Send commands to robot
     OnClearSet();
-    LEFT(OnSetJointCmdPos)(joints_left);
-    RIGHT(OnSetJointCmdPos)(joints_right);
+    TjArmServer::jointMoveCommand(-1, joints, request->velocity() * 100,
+                                  request->acceleration() * 100);
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
@@ -544,6 +540,7 @@ grpc::Status TjArmServer::PowerOff(grpc::ServerContext *context,
 grpc::Status TjArmServer::EnableServoMode(grpc::ServerContext *context,
                                           const EnableServoModeRequest *request,
                                           EnableServoModeResponse *response) {
+    LOG_ERROR("Servo mode not supported now");
     throw std::runtime_error("Not implemented yet");
     return grpc::Status::OK;
 }
@@ -551,6 +548,7 @@ grpc::Status TjArmServer::EnableServoMode(grpc::ServerContext *context,
 grpc::Status TjArmServer::IsServoMode(grpc::ServerContext *context,
                                       const IsServoModeRequest *request,
                                       IsServoModeResponse *response) {
+    LOG_ERROR("Servo mode not supported now");
     throw std::runtime_error("Not implemented yet");
     return grpc::Status::OK;
 }
@@ -558,6 +556,7 @@ grpc::Status TjArmServer::IsServoMode(grpc::ServerContext *context,
 grpc::Status TjArmServer::ServoJ(grpc::ServerContext *context,
                                  const ServoJRequest *request,
                                  ServoJResponse *response) {
+    LOG_ERROR("Servo mode not supported now");
     throw std::runtime_error("Not implemented yet");
     return grpc::Status::OK;
 }
@@ -565,6 +564,7 @@ grpc::Status TjArmServer::ServoJ(grpc::ServerContext *context,
 grpc::Status TjArmServer::ServoP(grpc::ServerContext *context,
                                  const ServoPRequest *request,
                                  ServoPResponse *response) {
+    LOG_ERROR("Servo mode not supported now");
     throw std::runtime_error("Not implemented yet");
     return grpc::Status::OK;
 }
@@ -572,6 +572,7 @@ grpc::Status TjArmServer::ServoP(grpc::ServerContext *context,
 grpc::Status TjArmServer::ServoSend(grpc::ServerContext *context,
                                     const ServoSendRequest *request,
                                     ServoSendResponse *response) {
+    LOG_ERROR("Servo mode not supported now");
     throw std::runtime_error("Not implemented yet");
     return grpc::Status::OK;
 }

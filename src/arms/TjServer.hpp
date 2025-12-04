@@ -390,6 +390,36 @@ class TjArmServer final : public arms::RobotArmService::Service {
 
         return result;
     }
+
+    static bool jointMoveCommand(int robot_index, FX_DOUBLE joints[2][7],
+                                 int speed_ratio, int acc_ratio) {
+        // NOTE: WRAP THIS FUNCTION WITH `OnClearSet` AND `OnSetSend`!
+
+        // -1: both arms, 0: left arm, 1: right arm
+        if (robot_index <= -1 || robot_index >= 2) {
+            return false;
+        }
+
+        // Set speed and acceleration limits
+        if (speed_ratio <= 0 || speed_ratio > 30) {
+            speed_ratio = 30;
+        }
+        if (acc_ratio <= 0 || acc_ratio > 30) {
+            acc_ratio = 30;
+        }
+        LEFT(OnSetJointLmt)(speed_ratio, acc_ratio);
+        RIGHT(OnSetJointLmt)(speed_ratio, acc_ratio);
+
+        // Set target joint positions
+        if (robot_index == -1 || robot_index == 0) {
+            LEFT(OnSetJointCmdPos)(joints[0]);
+        }
+        if (robot_index == -1 || robot_index == 1) {
+            RIGHT(OnSetJointCmdPos)(joints[1]);
+        }
+
+        return true;
+    }
 };
 
 } // namespace arms
