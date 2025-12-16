@@ -2,12 +2,13 @@
 
 #include "Logger.hpp"
 #include "arms.grpc.pb.h"
+#include <FxRobot.h>
+#include <MarvinSDK.h>
 #include <array>
 #include <grpcpp/grpcpp.h>
-#include <libtj/FxRobot.h>
-#include <libtj/MarvinSDK.h>
 #include <mutex>
 #include <optional>
+#include <thread>
 
 #undef LEFT
 #undef RIGHT
@@ -209,12 +210,12 @@ class TjArmServer final : public arms::RobotArmService::Service {
         }
 
         // Clear errors and verify connection
-        usleep(100000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         OnClearSet();
         OnClearErr_A();
         OnClearErr_B();
         OnSetSend();
-        usleep(100000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         int motion_tag = 0;
         int frame_update = 0;
@@ -229,7 +230,7 @@ class TjArmServer final : public arms::RobotArmService::Service {
                 motion_tag++;
                 frame_update = dcss.m_Out[0].m_OutFrameSerial;
             }
-            usleep(100000);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
         if (motion_tag > 0) {
@@ -266,7 +267,7 @@ class TjArmServer final : public arms::RobotArmService::Service {
 
             static DCSS dcss;
             if (!OnGetBuf(&dcss)) {
-                usleep(10000);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }
 
@@ -279,7 +280,7 @@ class TjArmServer final : public arms::RobotArmService::Service {
             }
 
             // Sleep for 10ms before checking again
-            usleep(10000);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
@@ -307,7 +308,7 @@ class TjArmServer final : public arms::RobotArmService::Service {
 
             static DCSS dcss;
             if (!OnGetBuf(&dcss)) {
-                usleep(10000);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }
 
@@ -320,7 +321,7 @@ class TjArmServer final : public arms::RobotArmService::Service {
             }
 
             // Sleep for 10ms before checking again
-            usleep(10000);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
@@ -402,10 +403,10 @@ class TjArmServer final : public arms::RobotArmService::Service {
 
         // Set speed and acceleration limits
         if (speed_ratio <= 0 || speed_ratio > 30) {
-            speed_ratio = 30;
+            speed_ratio = 40;
         }
         if (acc_ratio <= 0 || acc_ratio > 30) {
-            acc_ratio = 30;
+            acc_ratio = 40;
         }
         LEFT(OnSetJointLmt)(speed_ratio, acc_ratio);
         RIGHT(OnSetJointLmt)(speed_ratio, acc_ratio);

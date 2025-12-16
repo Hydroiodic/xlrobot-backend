@@ -1,3 +1,8 @@
+find_package(absl REQUIRED)
+find_package(PkgConfig REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(Threads REQUIRED)
+
 find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin HINTS /usr/bin /usr/local/bin)
 if(NOT GRPC_CPP_PLUGIN)
     message(

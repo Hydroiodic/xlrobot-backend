@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include <memory>
 #include <optional>
+#include <utility>
 
 namespace camera {
 
@@ -46,7 +47,7 @@ CameraBackend::getConnectedDeviceSerialNumbers() const {
     return result;
 }
 
-std::optional<std::unique_ptr<Image>>
+std::optional<std::pair<std::unique_ptr<Image>, std::unique_ptr<Image>>>
 CameraBackend::getImage(const std::string &serialNumber) {
     // Try to find the device in the map
     auto it = devs.find(serialNumber);

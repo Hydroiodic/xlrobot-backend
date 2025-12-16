@@ -1,10 +1,12 @@
-#include "OrbbecDevice.hpp"
 #include "Logger.hpp"
+#include "OrbbecDevice.hpp"
 #include "config.hpp"
+#include "libobsensor/h/ObTypes.h"
 #include <cstring>
 #include <iomanip>
 #include <memory>
 #include <sstream>
+#include <utility>
 
 namespace camera {
 
@@ -44,7 +46,8 @@ std::string OrbbecDevice::getCreateTimeString() const {
     return ss.str();
 }
 
-std::optional<std::unique_ptr<Image>> OrbbecDevice::getOneFrame() {
+std::optional<std::pair<std::unique_ptr<Image>, std::unique_ptr<Image>>>
+OrbbecDevice::getOneFrame() {
     try {
         // Get a frame set
         auto frameSet = pipeline_->waitForFrames(1000);
@@ -63,6 +66,15 @@ std::optional<std::unique_ptr<Image>> OrbbecDevice::getOneFrame() {
             return std::nullopt;
         }
 
+        // Get depth frame
+        auto depthFrame =
+            frameSet->getFrame(OB_FRAME_DEPTH)->as<ob::DepthFrame>();
+        if (!depthFrame) {
+            LOG_WARN("[Device %s] No depth frame available in frame set.",
+                     serialNumber_.c_str());
+            return std::nullopt;
+        }
+
         // Check frame data
         if (colorFrame->getData() == nullptr ||
             colorFrame->getWidth() != IMAGE_WIDTH ||
@@ -72,11 +84,24 @@ std::optional<std::unique_ptr<Image>> OrbbecDevice::getOneFrame() {
                      serialNumber_.c_str());
             return std::nullopt;
         }
+        if (depthFrame->getData() == nullptr ||
+            depthFrame->getWidth() != IMAGE_WIDTH ||
+            depthFrame->getHeight() != IMAGE_HEIGHT ||
+            depthFrame->getDataSize() !=
+                IMAGE_WIDTH * IMAGE_HEIGHT * sizeof(uint16_t)) {
+            LOG_WARN("[Device %s] Invalid depth frame data.",
+                     serialNumber_.c_str());
+            return std::nullopt;
+        }
 
         // Copy frame data into Image structure
-        auto img = std::make_unique<Image>();
-        memcpy(&img->data, colorFrame->getData(), IMAGE_SIZE);
-        return std::make_optional(std::move(img));
+        auto colorImg = std::make_unique<Image>();
+        memcpy(&colorImg->data, colorFrame->getData(), IMAGE_SIZE);
+        auto depthImg = std::make_unique<Image>();
+        memcpy(&depthImg->data, depthFrame->getData(),
+               IMAGE_WIDTH * IMAGE_HEIGHT * sizeof(uint16_t));
+        return std::make_optional(
+            std::make_pair(std::move(colorImg), std::move(depthImg)));
 
     } catch (const ob::Error &e) {
         LOG_ERROR("[Device %s] SDK Exception: %s", serialNumber_.c_str(),

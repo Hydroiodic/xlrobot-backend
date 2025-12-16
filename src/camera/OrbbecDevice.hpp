@@ -17,7 +17,8 @@ class OrbbecDevice {
     const std::string &getSerialNumber() const;
     std::chrono::system_clock::time_point getCreateTime() const;
     std::string getCreateTimeString() const;
-    std::optional<std::unique_ptr<Image>> getOneFrame();
+    std::optional<std::pair<std::unique_ptr<Image>, std::unique_ptr<Image>>>
+    getOneFrame();
 
   private:
     std::shared_ptr<ob::Context> ctx_;

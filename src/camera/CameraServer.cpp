@@ -44,10 +44,12 @@ grpc::Status CameraServer::GetImage(grpc::ServerContext *context,
 
             // Set image data
             response->set_success(true);
-            response->set_image_data(image->data, IMAGE_SIZE);
+            response->set_color_data(image.first->data, IMAGE_SIZE);
+            response->set_depth_data(image.second->data, IMAGE_WIDTH *
+                                                             IMAGE_HEIGHT *
+                                                             sizeof(uint16_t));
             response->set_width(IMAGE_WIDTH);
             response->set_height(IMAGE_HEIGHT);
-            response->set_channels(IMAGE_CHANNELS);
         } else {
             response->set_success(false);
             response->set_error_message("No image available for device: " +

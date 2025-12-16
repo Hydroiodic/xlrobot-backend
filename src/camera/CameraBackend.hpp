@@ -20,7 +20,7 @@ class CameraBackend {
 
     const std::vector<std::string> getConnectedDeviceSerialNumbers() const;
 
-    std::optional<std::unique_ptr<Image>>
+    std::optional<std::pair<std::unique_ptr<Image>, std::unique_ptr<Image>>>
     getImage(const std::string &serialNumber);
 };
 

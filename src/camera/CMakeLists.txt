@@ -23,5 +23,5 @@ target_link_libraries(
     camera
     PUBLIC
     proto
-    ob::OrbbecSDK
+    OrbbecSDK
 )

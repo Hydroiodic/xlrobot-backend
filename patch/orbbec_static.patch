@@ -1,0 +1,11 @@
+--- 3rdparty/OrbbecSDK_v2/src/CMakeLists.txt.orig
++++ 3rdparty/OrbbecSDK_v2/src/CMakeLists.txt
+@@ -39,7 +39,7 @@
+ endif()
+ 
+ # only support shared library for now
+-add_library(OrbbecSDK SHARED "" ${ORBBEC_VERSIONINFO_RC})
++add_library(OrbbecSDK STATIC "" ${ORBBEC_VERSIONINFO_RC})
+ include(GenerateExportHeader)
+ generate_export_header(OrbbecSDK BASE_NAME OB EXPORT_FILE_NAME ${OB_PUBLIC_HEADERS_DIR}/libobsensor/h/Export.h)
+ 
