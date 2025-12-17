@@ -23,5 +23,17 @@ target_link_libraries(
     camera
     PUBLIC
     proto
-    ob::OrbbecSDK
 )
+
+if(CAMERA_TYPE_INT EQUAL 0)
+    target_link_libraries(
+        camera
+        PUBLIC
+        OrbbecSDK::OrbbecSDK
+    )
+
+    install(
+        FILES ${OrbbecSDK_DLL_FILES}
+        DESTINATION lib64
+    )
+endif()

@@ -1,24 +1,47 @@
 #include "Logger.hpp"
 #include "TjServer.hpp"
 #include "angle.hpp"
-#include <libtj/FxRobot.h>
-#include <libtj/MarvinSDK.h>
+#include <FxRobot.h>
+#include <MarvinSDK.h>
+#include <cmrc/cmrc.hpp>
 #include <mutex>
 #include <stdexcept>
 #include <unistd.h>
+
+// Declare cmrc resource namespace
+CMRC_DECLARE(tj_config);
 
 namespace arms {
 
 TjArmServer::TjArmServer(const std::string &robot_ip) {
     // Initialize robot configuration file
-    char exe_path[1024];
-    ssize_t count = readlink("/proc/self/exe", exe_path, sizeof(exe_path));
-    if (count == -1 || count == sizeof(exe_path)) {
-        throw std::runtime_error("Failed to get executable path");
+    auto fs = cmrc::tj_config::get_filesystem();
+    if (!fs.exists("ccs_m6.MvKDCfg")) {
+        throw std::runtime_error("Embedded ccs_m6.MvKDCfg not found");
     }
-    std::string exe_dir(exe_path, count);
-    std::string config_path =
-        exe_dir.substr(0, exe_dir.find_last_of('/')) + "/ccs_m6.MvKDCfg";
+    auto file = fs.open("ccs_m6.MvKDCfg");
+
+    // Create temporary file for configuration
+    char tmp_path[] = "/tmp/ccs_m6_XXXXXX.MvKDCfg";
+    int fd = mkstemps(tmp_path, 8); // strlen(".MvKDCfg") == 8
+    if (fd == -1) {
+        throw std::runtime_error("Failed to create temp config file");
+    }
+    {
+        std::ofstream ofs(tmp_path, std::ios::binary | std::ios::trunc);
+        if (!ofs) {
+            close(fd);
+            throw std::runtime_error("Failed to open temp config file");
+        }
+        ofs.write(file.begin(), file.size());
+        if (!ofs) {
+            close(fd);
+            throw std::runtime_error("Failed to write temp config file");
+        }
+    }
+    close(fd);
+
+    std::string config_path = tmp_path;
     LOG_INFO("Loading robot arms configuration from %s", config_path.c_str());
     if (!TjArmServer::initializedKineParams(config_path)) {
         throw std::runtime_error(
@@ -157,7 +180,9 @@ grpc::Status TjArmServer::JointMove(grpc::ServerContext *context,
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
-    usleep(100000);
+    if (request->is_block()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
     // Wait for motion to complete if blocking is requested
     if (request->is_block() &&
@@ -216,7 +241,9 @@ grpc::Status TjArmServer::DualJointMove(grpc::ServerContext *context,
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
-    usleep(100000);
+    if (request->is_block()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
     // Wait for motion to complete if blocking is requested
     if (request->is_block() && !TjArmServer::waitForMotionComplete(-1)) {
@@ -301,7 +328,9 @@ grpc::Status TjArmServer::CartesianMove(grpc::ServerContext *context,
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
-    usleep(100000);
+    if (request->is_block()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
     // Wait for motion to complete if blocking is requested
     if (request->is_block() &&
@@ -417,7 +446,9 @@ TjArmServer::DualCartesianMove(grpc::ServerContext *context,
     OnSetSend();
 
     // Sleep for a short while to ensure motion has started
-    usleep(100000);
+    if (request->is_block()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
     // Wait for motion to complete if blocking is requested
     if (request->is_block() && !TjArmServer::waitForMotionComplete(-1)) {
@@ -454,7 +485,7 @@ grpc::Status TjArmServer::Enable(grpc::ServerContext *context,
     LEFT(OnClearErr)();
     RIGHT(OnClearErr)();
     OnSetSend();
-    usleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // Setup position mode
     OnClearSet();
@@ -463,7 +494,7 @@ grpc::Status TjArmServer::Enable(grpc::ServerContext *context,
     LEFT(OnSetJointLmt)(30, 30);
     RIGHT(OnSetJointLmt)(30, 30);
     OnSetSend();
-    usleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     response->set_success(true);
     return grpc::Status::OK;
@@ -481,14 +512,14 @@ grpc::Status TjArmServer::Disable(grpc::ServerContext *context,
     LEFT(OnClearErr)();
     RIGHT(OnClearErr)();
     OnSetSend();
-    usleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // Setup idle mode
     OnClearSet();
     LEFT(OnSetTargetState)(0);
     RIGHT(OnSetTargetState)(0);
     OnSetSend();
-    usleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     response->set_success(true);
     return grpc::Status::OK;

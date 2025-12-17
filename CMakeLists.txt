@@ -19,6 +19,7 @@ if(ARMS_TYPE STREQUAL "jaka")
     set(ARMS_TYPE_INT 0)
 elseif(ARMS_TYPE STREQUAL "tj")
     set(ARMS_TYPE_INT 1)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/TJ_FX_ROBOT_CONTRL_SDK/include)
 else()
     message(STATUS "Arms type not specified or unrecognized, arms functionality will be disabled.")
     set(ARMS_TYPE_INT -1)
@@ -26,27 +27,18 @@ endif()
 
 if(CAMERA_TYPE STREQUAL "orbbec")
     set(CAMERA_TYPE_INT 0)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/OrbbecSDK_v2/include)
 else()
     message(STATUS "Camera type not specified or unrecognized, camera functionality will be disabled.")
     set(CAMERA_TYPE_INT -1)
 endif()
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "/home" CACHE PATH "Install prefix" FORCE)
-endif()
-
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+add_subdirectory(3rdparty)
 add_subdirectory(src)
 
 install(
     TARGETS XLRobotBackend
-    RUNTIME DESTINATION .
+    RUNTIME DESTINATION bin
 )
-
-if(ARMS_TYPE_INT EQUAL 1)
-    install(
-        FILES ${CMAKE_SOURCE_DIR}/assets/ccs_m6.MvKDCfg
-        DESTINATION .
-    )
-endif()

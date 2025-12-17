@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 #if ARMS_TYPE >= 0
         builder.RegisterService(&arms_server);
 #else
-        std::cout << "Jaka arms disabled.\n";
+        std::cout << "Robot arms disabled.\n";
 #endif
 
 #if CAMERA_TYPE >= 0

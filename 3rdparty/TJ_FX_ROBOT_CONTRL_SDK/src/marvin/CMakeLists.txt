@@ -19,3 +19,9 @@ target_link_libraries(
     pthread
     rt
 )
+
+target_include_directories(
+    Kine
+    PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)

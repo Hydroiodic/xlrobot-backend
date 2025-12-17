@@ -1,0 +1,7 @@
+[submodule "3rdparty/cmrc"]
+	path = 3rdparty/cmrc
+	url = https://github.com/vector-of-bool/cmrc.git
+[submodule "3rdparty/OrbbecSDK"]
+	path = 3rdparty/OrbbecSDK
+	url = https://github.com/orbbec/OrbbecSDK.git
+	branch = v2-main
