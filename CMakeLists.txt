@@ -41,7 +41,7 @@ add_subdirectory(src)
 
 install(
     TARGETS XLRobotBackend
-    RUNTIME DESTINATION home
+    RUNTIME DESTINATION bin
 )
 
 if(ARMS_TYPE_INT EQUAL 0)
@@ -52,11 +52,5 @@ if(ARMS_TYPE_INT EQUAL 0)
     install(
         FILES ${CMAKE_SOURCE_DIR}/lib/libjakaAPI.so
         DESTINATION lib64
-    )
-endif()
-if(ARMS_TYPE_INT EQUAL 1)
-    install(
-        FILES ${CMAKE_SOURCE_DIR}/assets/ccs_m6.MvKDCfg
-        DESTINATION home
     )
 endif()

@@ -1,0 +1,57 @@
+--- 3rdparty/OrbbecSDK_v2/cmake/linux_config.cmake.orig
++++ 3rdparty/OrbbecSDK_v2/cmake/linux_config.cmake
+@@ -42,38 +42,28 @@
+     set(OB_BUILD_LINUX_ARM32 ON)
+ endif()
+ 
+-execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE MACHINE)
+-
+ if(OB_BUILD_LINUX_ARM64)
+-    if(${MACHINE} MATCHES "aarch64.*-linux-gnu")
+-        add_definitions(-DOS_ARM)
+-        add_definitions(-DOS_ARM64)
+-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mstrict-align -ftree-vectorize")
+-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mstrict-align -ftree-vectorize")
++    add_definitions(-DOS_ARM)
++    add_definitions(-DOS_ARM64)
++    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mstrict-align -ftree-vectorize")
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mstrict-align -ftree-vectorize")
+ 
+-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
+-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
++    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
++    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
+ 
+-        set(OB_CURRENT_OS "linux_arm64")
+-    else()
+-        message(SEND_ERROR "Obsensor: check aarch64-linux-gnu not found!!!")
+-    endif()
++    set(OB_CURRENT_OS "linux_arm64")
+ endif()
+ 
+ if(OB_BUILD_LINUX_ARM32)
+-    if(${MACHINE} MATCHES "arm.*-linux-gnueabihf")
+-        add_definitions(-DOS_ARM)
+-        add_definitions(-DOS_ARM32)
+-        set(CMAKE_C_FLAGS
+-            "${CMAKE_C_FLAGS}  -Wl,--allow-shlib-undefined -mfpu=neon -mfloat-abi=hard -ftree-vectorize -latomic -std=c99"
+-        )
+-        set(CMAKE_CXX_FLAGS
+-            "${CMAKE_CXX_FLAGS} -Wl,--allow-shlib-undefined -mfpu=neon -mfloat-abi=hard -ftree-vectorize -latomic"
+-        )
+-        set(OB_CURRENT_OS "linux_arm32")
+-    else()
+-        message(SEND_ERROR "Obsensor: check arm-linux-gnueabihf not found!!!")
+-    endif()
++    add_definitions(-DOS_ARM)
++    add_definitions(-DOS_ARM32)
++    set(CMAKE_C_FLAGS
++        "${CMAKE_C_FLAGS}  -Wl,--allow-shlib-undefined -mfpu=neon -mfloat-abi=hard -ftree-vectorize -latomic -std=c99"
++    )
++    set(CMAKE_CXX_FLAGS
++        "${CMAKE_CXX_FLAGS} -Wl,--allow-shlib-undefined -mfpu=neon -mfloat-abi=hard -ftree-vectorize -latomic"
++    )
++    set(OB_CURRENT_OS "linux_arm32")
+ endif()
+ 
+ if(OB_BUILD_LINUX_ARM64 OR OB_BUILD_LINUX_ARM32)
