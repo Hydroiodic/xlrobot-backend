@@ -31,7 +31,7 @@ CameraBackend::CameraBackend() {
         // Get the device from device list
         auto dev = devList->getDevice(i);
         // Add the pipeline to the map of pipelines
-        devs.insert({std::string(dev->getDeviceInfo()->getSerialNumber()),
+        devs.insert({std::string(dev->getDeviceInfo()->serialNumber()),
                      std::make_shared<OrbbecDevice>(dev)});
     }
 }

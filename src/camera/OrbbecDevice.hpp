@@ -21,7 +21,6 @@ class OrbbecDevice {
     getOneFrame();
 
   private:
-    std::shared_ptr<ob::Context> ctx_;
     std::shared_ptr<ob::Device> device_;
     std::unique_ptr<ob::Pipeline> pipeline_;
     std::string serialNumber_;
