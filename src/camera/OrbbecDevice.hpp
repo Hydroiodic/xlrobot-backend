@@ -22,9 +22,11 @@ class OrbbecDevice {
 
   private:
     std::shared_ptr<ob::Device> device_;
+    std::shared_ptr<ob::Config> config_;
     std::unique_ptr<ob::Pipeline> pipeline_;
     std::string serialNumber_;
     std::chrono::system_clock::time_point createTime_;
+    bool depth_enabled_;
 };
 
 } // namespace camera

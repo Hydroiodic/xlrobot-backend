@@ -68,3 +68,21 @@ if(ARMS_TYPE_INT EQUAL 1)
         MarvinSDK
     )
 endif()
+
+if(ARMS_TYPE_INT EQUAL 1)
+    add_executable(
+        TjSetMode
+        TjSetMode.cpp
+    )
+
+    target_link_libraries(
+        TjSetMode
+        PRIVATE
+        MarvinSDK
+    )
+
+    install(
+        TARGETS TjSetMode
+        RUNTIME DESTINATION bin
+    )
+endif()

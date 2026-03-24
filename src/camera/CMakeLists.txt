@@ -37,3 +37,20 @@ if(CAMERA_TYPE_INT EQUAL 0)
         DESTINATION lib64
     )
 endif()
+
+if(CAMERA_TYPE_INT EQUAL 0)
+    add_executable(
+        OrbbecIntrinsic
+        OrbbecIntrinsic.cpp
+    )
+
+    target_link_libraries(
+        OrbbecIntrinsic
+        OrbbecSDK::OrbbecSDK
+    )
+
+    install(
+        TARGETS OrbbecIntrinsic
+        RUNTIME DESTINATION bin
+    )
+endif()

@@ -1,7 +1,6 @@
 #include "Logger.hpp"
 #include "OrbbecDevice.hpp"
 #include "config.hpp"
-#include "libobsensor/h/ObTypes.h"
 #include <cstring>
 #include <iomanip>
 #include <memory>
@@ -10,36 +9,55 @@
 
 namespace camera {
 
-OrbbecDevice::OrbbecDevice(std::shared_ptr<ob::Device> device)
-    : device_(device), createTime_(std::chrono::system_clock::now()) {
-    // Initialize serial number
-    serialNumber_ = device_->getDeviceInfo()->serialNumber();
+static const std::string GEMINI_336L_NAME = "Orbbec Gemini 336L";
 
-    // Initialize pipeline
+OrbbecDevice::OrbbecDevice(std::shared_ptr<ob::Device> device)
+    : device_(device), config_(std::make_shared<ob::Config>()),
+      createTime_(std::chrono::system_clock::now()) {
+    // Initialize serial number and judge whether depth stream is enabled
+    serialNumber_ = device_->getDeviceInfo()->serialNumber();
+    depth_enabled_ = device_->getDeviceInfo()->name() == GEMINI_336L_NAME;
+
+    // Initialize pipeline and config
     pipeline_ = std::make_unique<ob::Pipeline>(device_);
-    auto config = std::make_shared<ob::Config>();
 
     // Enable color stream
     auto color_profiles = pipeline_->getStreamProfileList(OB_SENSOR_COLOR);
     auto color_profile = color_profiles->getVideoStreamProfile(
         IMAGE_WIDTH, IMAGE_HEIGHT, OB_FORMAT_RGB888, STREAM_FPS);
-    config->enableStream(color_profile);
+    config_->enableStream(color_profile);
 
-    // Enable depth stream
-    auto depth_profiles = pipeline_->getStreamProfileList(OB_SENSOR_DEPTH);
-    auto depth_profile = depth_profiles->getVideoStreamProfile(
-        IMAGE_WIDTH, IMAGE_HEIGHT, OB_FORMAT_Y16, STREAM_FPS);
-    config->enableStream(depth_profile);
-
-    // Enable accelerometer stream
-    if (device->isPropertySupported(OB_PROP_DEPTH_ALIGN_HARDWARE_BOOL,
-                                    OB_PERMISSION_READ)) {
-        config->setAlignMode(ALIGN_D2C_HW_MODE);
-    } else {
-        config->setAlignMode(ALIGN_D2C_SW_MODE);
+    // Depth stream is only enabled for Gemini 336L
+    if (depth_enabled_) {
+        // Enable depth stream
+        auto depth_profiles = pipeline_->getStreamProfileList(OB_SENSOR_DEPTH);
+        auto depth_profile = depth_profiles->getVideoStreamProfile(
+            IMAGE_WIDTH, IMAGE_HEIGHT, OB_FORMAT_Y16, STREAM_FPS);
+        config_->enableStream(depth_profile);
+        // Enable accelerometer stream
+        if (device->isPropertySupported(OB_PROP_DEPTH_ALIGN_HARDWARE_BOOL,
+                                        OB_PERMISSION_READ)) {
+            config_->setAlignMode(ALIGN_D2C_HW_MODE);
+        } else {
+            config_->setAlignMode(ALIGN_D2C_SW_MODE);
+        }
     }
 
-    pipeline_->start(config);
+    // // Setup device changed callback
+    // ctx_->setDeviceChangedCallback(
+    //     [this](std::shared_ptr<ob::DeviceList> removed_devices,
+    //            std::shared_ptr<ob::DeviceList> added_devices) {
+    //         if (removed_devices->getDeviceBySN(this->serialNumber_.c_str()))
+    //         {
+    //             this->pipeline_->stop();
+    //         } else if (added_devices->getDeviceBySN(
+    //                        this->serialNumber_.c_str())) {
+    //             this->pipeline_ = std::make_unique<ob::Pipeline>();
+    //             this->pipeline_->start(this->config_);
+    //         }
+    //     });
+
+    this->pipeline_->start(this->config_);
     LOG_INFO("[Device %s] Pipeline started, camera work commencing.",
              serialNumber_.c_str());
 }
@@ -98,29 +116,33 @@ OrbbecDevice::getOneFrame() {
         auto colorImg = std::make_unique<Image>();
         memcpy(&colorImg->data, colorFrame->getData(), IMAGE_SIZE);
 
-        // Get depth frame
-        auto depthFrame = frameSet->depthFrame();
-        if (!depthFrame) {
-            LOG_WARN("[Device %s] No depth frame available in frame set.",
-                     serialNumber_.c_str());
-            return std::nullopt;
-        }
-
-        // Check depth frame data
-        if (depthFrame->getData() == nullptr ||
-            depthFrame->getWidth() != IMAGE_WIDTH ||
-            depthFrame->getHeight() != IMAGE_HEIGHT ||
-            depthFrame->getFormat() != OB_FORMAT_Y16) {
-            LOG_WARN("[Device %s] Invalid depth frame data.",
-                     serialNumber_.c_str());
-            return std::nullopt;
-        }
-
-        // Copy frame data into Image structure
+        // Depth stream is only enabled for Gemini 336L
         auto depthImg = std::make_unique<Image>();
-        memcpy(&depthImg->data, depthFrame->getData(),
-               IMAGE_WIDTH * IMAGE_HEIGHT * sizeof(uint16_t));
+        if (depth_enabled_) {
+            // Get depth frame
+            auto depthFrame = frameSet->depthFrame();
+            if (!depthFrame) {
+                LOG_WARN("[Device %s] No depth frame available in frame set.",
+                         serialNumber_.c_str());
+                return std::nullopt;
+            }
 
+            // Check depth frame data
+            if (depthFrame->getData() == nullptr ||
+                depthFrame->getWidth() != IMAGE_WIDTH ||
+                depthFrame->getHeight() != IMAGE_HEIGHT ||
+                depthFrame->getFormat() != OB_FORMAT_Y16) {
+                LOG_WARN("[Device %s] Invalid depth frame data.",
+                         serialNumber_.c_str());
+                return std::nullopt;
+            }
+
+            // Copy frame data into Image structure
+            memcpy(&depthImg->data, depthFrame->getData(),
+                   IMAGE_WIDTH * IMAGE_HEIGHT * sizeof(uint16_t));
+        }
+
+        // Return the result
         return std::make_optional(
             std::make_pair(std::move(colorImg), std::move(depthImg)));
 
